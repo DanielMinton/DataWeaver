@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DataWeaver - ETL Pipeline Visualizer</title>
+  <title>DataWeaver - Live ETL Pipeline</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -13,23 +13,46 @@
       min-height: 100vh;
       padding: 20px;
     }
-    .container { max-width: 900px; margin: 0 auto; }
+    .container { max-width: 1000px; margin: 0 auto; }
     h1 {
       font-size: 1.5rem;
-      margin-bottom: 8px;
+      margin-bottom: 4px;
       background: linear-gradient(90deg, #f59e0b, #fbbf24);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
-    .subtitle { color: #888; font-size: 0.875rem; margin-bottom: 24px; }
+    .subtitle { color: #888; font-size: 0.875rem; margin-bottom: 20px; }
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      border-radius: 999px;
+      font-size: 0.7rem;
+      color: #22c55e;
+      margin-left: 12px;
+      vertical-align: middle;
+    }
+    .live-badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: #22c55e;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.2); }
+    }
     .pipeline-container {
       background: rgba(255,255,255,0.03);
       border: 1px solid rgba(255,255,255,0.1);
       border-radius: 16px;
       padding: 24px;
-      margin-bottom: 24px;
-      position: relative;
-      overflow: hidden;
+      margin-bottom: 20px;
     }
     .pipeline {
       display: flex;
@@ -64,74 +87,187 @@
       z-index: 2;
     }
     .stage-icon {
-      width: 60px;
-      height: 60px;
-      border-radius: 16px;
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
       background: rgba(255,255,255,0.05);
       border: 2px solid rgba(255,255,255,0.1);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.5rem;
+      font-size: 1.4rem;
       margin-bottom: 8px;
       transition: all 0.3s;
     }
     .stage.active .stage-icon {
       background: rgba(245, 158, 11, 0.2);
       border-color: #f59e0b;
-      animation: pulse 1s infinite;
+      animation: stagePulse 1s infinite;
     }
     .stage.complete .stage-icon {
       background: rgba(34, 197, 94, 0.2);
       border-color: #22c55e;
     }
-    @keyframes pulse {
+    .stage.error .stage-icon {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: #ef4444;
+    }
+    @keyframes stagePulse {
       0%, 100% { transform: scale(1); }
       50% { transform: scale(1.05); }
     }
-    .stage-label {
-      font-size: 0.75rem;
-      color: #888;
-      text-align: center;
-    }
+    .stage-label { font-size: 0.7rem; color: #888; text-align: center; }
     .stage.active .stage-label { color: #f59e0b; }
     .stage.complete .stage-label { color: #22c55e; }
+
     .data-flow {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 16px;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
     .flow-card {
       background: rgba(255,255,255,0.03);
       border: 1px solid rgba(255,255,255,0.1);
       border-radius: 12px;
-      padding: 16px;
+      padding: 14px;
     }
     .flow-header {
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-bottom: 12px;
-      font-size: 0.875rem;
+      margin-bottom: 10px;
+      font-size: 0.8rem;
       font-weight: 600;
     }
     .flow-stats {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
-      font-size: 0.75rem;
+      font-size: 0.7rem;
     }
     .flow-stat {
       padding: 8px;
       background: rgba(0,0,0,0.2);
       border-radius: 6px;
     }
-    .flow-stat-label { color: #666; font-size: 0.625rem; }
-    .flow-stat-value { color: #fff; font-weight: 600; }
+    .flow-stat-label { color: #666; font-size: 0.6rem; text-transform: uppercase; }
+    .flow-stat-value { color: #fff; font-weight: 600; font-size: 0.85rem; }
     .flow-stat-value.yellow { color: #f59e0b; }
     .flow-stat-value.green { color: #22c55e; }
     .flow-stat-value.blue { color: #3b82f6; }
+    .flow-stat-value.purple { color: #a855f7; }
+
+    .results-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .chart-container {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .chart-title {
+      font-size: 0.75rem;
+      color: #888;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .bar-chart {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .bar-label {
+      width: 70px;
+      font-size: 0.7rem;
+      color: #888;
+      text-align: right;
+    }
+    .bar-container {
+      flex: 1;
+      height: 20px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .bar {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.8s ease;
+      display: flex;
+      align-items: center;
+      padding-left: 8px;
+      font-size: 0.65rem;
+      font-weight: 600;
+    }
+    .bar-value {
+      font-size: 0.7rem;
+      color: #fff;
+      min-width: 40px;
+      text-align: right;
+    }
+
+    .top-repos {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .repo-item {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      background: rgba(255,255,255,0.02);
+      transition: background 0.2s;
+    }
+    .repo-item:hover { background: rgba(255,255,255,0.05); }
+    .repo-rank {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      background: rgba(245, 158, 11, 0.2);
+      color: #f59e0b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+      margin-right: 10px;
+    }
+    .repo-info { flex: 1; min-width: 0; }
+    .repo-name {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .repo-desc {
+      font-size: 0.65rem;
+      color: #666;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .repo-stars {
+      font-size: 0.7rem;
+      color: #f59e0b;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
     .logs {
       background: #0a0a0a;
       border: 1px solid rgba(255,255,255,0.1);
@@ -139,43 +275,41 @@
       overflow: hidden;
     }
     .logs-header {
-      padding: 12px 16px;
+      padding: 10px 14px;
       background: rgba(255,255,255,0.03);
       border-bottom: 1px solid rgba(255,255,255,0.1);
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       color: #888;
       display: flex;
       justify-content: space-between;
     }
     .logs-body {
-      padding: 12px 16px;
+      padding: 10px 14px;
       font-family: 'Monaco', 'Menlo', monospace;
-      font-size: 0.7rem;
-      height: 120px;
+      font-size: 0.65rem;
+      height: 140px;
       overflow-y: auto;
     }
-    .log-entry {
-      padding: 4px 0;
-      opacity: 0;
-      animation: fadeIn 0.3s forwards;
-    }
-    @keyframes fadeIn {
-      to { opacity: 1; }
-    }
+    .log-entry { padding: 3px 0; opacity: 0; animation: fadeIn 0.3s forwards; }
+    @keyframes fadeIn { to { opacity: 1; } }
     .log-time { color: #666; }
     .log-extract { color: #f59e0b; }
     .log-transform { color: #a855f7; }
     .log-load { color: #22c55e; }
     .log-info { color: #3b82f6; }
+    .log-error { color: #ef4444; }
+    .log-data { color: #06b6d4; }
+
     .controls {
       display: flex;
       gap: 12px;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
+      align-items: center;
     }
     .btn {
       padding: 10px 20px;
       border-radius: 8px;
-      font-size: 0.875rem;
+      font-size: 0.8rem;
       font-weight: 500;
       cursor: pointer;
       transition: all 0.2s;
@@ -191,127 +325,157 @@
       border: 1px solid rgba(255,255,255,0.1);
       color: white;
     }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .data-source-select {
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #fff;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .data-source-select option { background: #1a1a2e; }
+
+    .api-note {
+      font-size: 0.65rem;
+      color: #666;
+      margin-left: auto;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>DataWeaver</h1>
-    <p class="subtitle">Visual ETL pipeline orchestration and monitoring</p>
+    <h1>DataWeaver <span class="live-badge">LIVE DATA</span></h1>
+    <p class="subtitle">Real-time ETL pipeline processing GitHub API data</p>
 
     <div class="controls">
       <button class="btn btn-primary" id="runBtn" onclick="runPipeline()">Run Pipeline</button>
       <button class="btn btn-secondary" onclick="resetPipeline()">Reset</button>
+      <select class="data-source-select" id="dataSource">
+        <option value="ai-ml">AI/ML Repositories</option>
+        <option value="typescript">TypeScript Projects</option>
+        <option value="rust">Rust Projects</option>
+        <option value="data-science">Data Science Tools</option>
+      </select>
+      <span class="api-note">Data source: GitHub REST API (live)</span>
     </div>
 
     <div class="pipeline-container">
       <div class="pipeline">
         <div class="pipeline-line"></div>
         <div class="pipeline-progress" id="pipelineProgress"></div>
-
-        <div class="stage" id="stage-source">
-          <div class="stage-icon">📥</div>
-          <div class="stage-label">Source</div>
+        <div class="stage" id="stage-connect">
+          <div class="stage-icon">🔌</div>
+          <div class="stage-label">Connect</div>
         </div>
-
         <div class="stage" id="stage-extract">
-          <div class="stage-icon">🔍</div>
+          <div class="stage-icon">📥</div>
           <div class="stage-label">Extract</div>
         </div>
-
         <div class="stage" id="stage-transform">
           <div class="stage-icon">⚙️</div>
           <div class="stage-label">Transform</div>
         </div>
-
         <div class="stage" id="stage-validate">
           <div class="stage-icon">✅</div>
           <div class="stage-label">Validate</div>
         </div>
-
-        <div class="stage" id="stage-load">
-          <div class="stage-icon">📤</div>
-          <div class="stage-label">Load</div>
+        <div class="stage" id="stage-visualize">
+          <div class="stage-icon">📊</div>
+          <div class="stage-label">Visualize</div>
         </div>
       </div>
     </div>
 
     <div class="data-flow">
       <div class="flow-card">
-        <div class="flow-header">📊 Input Stream</div>
+        <div class="flow-header">📥 Extracted Data</div>
         <div class="flow-stats">
           <div class="flow-stat">
-            <div class="flow-stat-label">Records</div>
-            <div class="flow-stat-value yellow" id="inputRecords">0</div>
+            <div class="flow-stat-label">Repositories</div>
+            <div class="flow-stat-value yellow" id="repoCount">0</div>
           </div>
           <div class="flow-stat">
-            <div class="flow-stat-label">Size</div>
-            <div class="flow-stat-value" id="inputSize">0 MB</div>
+            <div class="flow-stat-label">API Calls</div>
+            <div class="flow-stat-value" id="apiCalls">0</div>
           </div>
           <div class="flow-stat">
-            <div class="flow-stat-label">Format</div>
-            <div class="flow-stat-value">JSON</div>
+            <div class="flow-stat-label">Response Time</div>
+            <div class="flow-stat-value blue" id="responseTime">--</div>
           </div>
           <div class="flow-stat">
-            <div class="flow-stat-label">Source</div>
-            <div class="flow-stat-value">S3</div>
+            <div class="flow-stat-label">Data Size</div>
+            <div class="flow-stat-value" id="dataSize">0 KB</div>
           </div>
         </div>
       </div>
 
       <div class="flow-card">
-        <div class="flow-header">🔄 Processing</div>
+        <div class="flow-header">⚙️ Transformations</div>
         <div class="flow-stats">
           <div class="flow-stat">
-            <div class="flow-stat-label">Throughput</div>
-            <div class="flow-stat-value blue" id="throughput">0/s</div>
+            <div class="flow-stat-label">Records Processed</div>
+            <div class="flow-stat-value purple" id="recordsProcessed">0</div>
           </div>
           <div class="flow-stat">
-            <div class="flow-stat-label">Errors</div>
-            <div class="flow-stat-value" id="errors">0</div>
+            <div class="flow-stat-label">Aggregations</div>
+            <div class="flow-stat-value" id="aggregations">0</div>
           </div>
           <div class="flow-stat">
-            <div class="flow-stat-label">Transforms</div>
-            <div class="flow-stat-value">12</div>
+            <div class="flow-stat-label">Fields Mapped</div>
+            <div class="flow-stat-value" id="fieldsMapped">0</div>
           </div>
           <div class="flow-stat">
-            <div class="flow-stat-label">Workers</div>
-            <div class="flow-stat-value">4</div>
+            <div class="flow-stat-label">Null Handled</div>
+            <div class="flow-stat-value" id="nullsHandled">0</div>
           </div>
         </div>
       </div>
 
       <div class="flow-card">
-        <div class="flow-header">📦 Output</div>
+        <div class="flow-header">📊 Output Metrics</div>
         <div class="flow-stats">
           <div class="flow-stat">
-            <div class="flow-stat-label">Written</div>
-            <div class="flow-stat-value green" id="outputRecords">0</div>
+            <div class="flow-stat-label">Total Stars</div>
+            <div class="flow-stat-value green" id="totalStars">0</div>
           </div>
           <div class="flow-stat">
-            <div class="flow-stat-label">Size</div>
-            <div class="flow-stat-value" id="outputSize">0 MB</div>
+            <div class="flow-stat-label">Total Forks</div>
+            <div class="flow-stat-value" id="totalForks">0</div>
           </div>
           <div class="flow-stat">
-            <div class="flow-stat-label">Format</div>
-            <div class="flow-stat-value">Parquet</div>
+            <div class="flow-stat-label">Avg Stars/Repo</div>
+            <div class="flow-stat-value blue" id="avgStars">0</div>
           </div>
           <div class="flow-stat">
-            <div class="flow-stat-label">Target</div>
-            <div class="flow-stat-value">Redshift</div>
+            <div class="flow-stat-label">Languages</div>
+            <div class="flow-stat-value" id="langCount">0</div>
           </div>
         </div>
       </div>
     </div>
 
+    <div class="results-section" id="resultsSection" style="display: none;">
+      <div class="chart-container">
+        <div class="chart-title">Stars by Language</div>
+        <div class="bar-chart" id="languageChart"></div>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">Top Repositories</div>
+        <div class="top-repos" id="topRepos"></div>
+      </div>
+    </div>
+
     <div class="logs">
       <div class="logs-header">
-        <span>Pipeline Logs</span>
+        <span>Pipeline Execution Log</span>
         <span id="logStatus">Idle</span>
       </div>
       <div class="logs-body" id="logBody">
-        <div class="log-entry"><span class="log-time">[00:00:00]</span> <span class="log-info">DataWeaver v3.2.0 initialized</span></div>
-        <div class="log-entry"><span class="log-time">[00:00:00]</span> <span class="log-info">Waiting for pipeline execution...</span></div>
+        <div class="log-entry"><span class="log-time">[00:00:00]</span> <span class="log-info">DataWeaver v4.0.0 initialized</span></div>
+        <div class="log-entry"><span class="log-time">[00:00:00]</span> <span class="log-info">Ready to connect to GitHub API...</span></div>
       </div>
     </div>
   </div>
@@ -319,10 +483,24 @@
   <script>
     let isRunning = false;
     let logTime = 0;
+    let rawData = [];
+    let transformedData = {};
 
-    const stages = ['source', 'extract', 'transform', 'validate', 'load'];
-    let currentStage = -1;
-    let records = 0;
+    const stages = ['connect', 'extract', 'transform', 'validate', 'visualize'];
+
+    const dataSourceQueries = {
+      'ai-ml': 'machine+learning+OR+artificial+intelligence+OR+deep+learning+OR+neural+network',
+      'typescript': 'typescript+framework+OR+typescript+library',
+      'rust': 'rust+lang+OR+rust+async+OR+rust+web',
+      'data-science': 'data+science+OR+pandas+OR+jupyter+OR+data+analysis'
+    };
+
+    const dataSourceLabels = {
+      'ai-ml': 'AI/ML',
+      'typescript': 'TypeScript',
+      'rust': 'Rust',
+      'data-science': 'Data Science'
+    };
 
     function formatTime(seconds) {
       const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -343,13 +521,16 @@
     function setStage(index) {
       stages.forEach((s, i) => {
         const el = document.getElementById(`stage-${s}`);
-        el.classList.remove('active', 'complete');
+        el.classList.remove('active', 'complete', 'error');
         if (i < index) el.classList.add('complete');
         if (i === index) el.classList.add('active');
       });
-
       const progress = document.getElementById('pipelineProgress');
       progress.style.width = `${(index / (stages.length - 1)) * 100}%`;
+    }
+
+    function setStageError(stageName) {
+      document.getElementById(`stage-${stageName}`).classList.add('error');
     }
 
     async function runPipeline() {
@@ -357,92 +538,237 @@
       isRunning = true;
       document.getElementById('runBtn').disabled = true;
       document.getElementById('logStatus').textContent = 'Running';
+      document.getElementById('resultsSection').style.display = 'none';
 
-      // Source stage
-      setStage(0);
-      addLog('Connecting to S3 bucket...', 'extract');
-      await sleep(500);
-      addLog('Source connection established', 'extract');
-      await sleep(300);
+      const dataSource = document.getElementById('dataSource').value;
+      const query = dataSourceQueries[dataSource];
+      const label = dataSourceLabels[dataSource];
 
-      // Extract stage
-      setStage(1);
-      addLog('Starting data extraction...', 'extract');
-      await animateRecords('inputRecords', 0, 50000, 1500);
-      document.getElementById('inputSize').textContent = '24.7 MB';
-      addLog('Extracted 50,000 records (24.7 MB)', 'extract');
-      await sleep(300);
+      try {
+        // Stage 1: Connect
+        setStage(0);
+        addLog(`Initializing connection to GitHub REST API...`, 'extract');
+        await sleep(300);
+        addLog(`Target: api.github.com/search/repositories`, 'extract');
+        addLog(`Query: ${label} repositories (sorted by stars)`, 'data');
+        await sleep(200);
 
-      // Transform stage
-      setStage(2);
-      addLog('Applying transformations...', 'transform');
-      addLog('→ Cleaning null values', 'transform');
-      await sleep(400);
-      addLog('→ Normalizing timestamps', 'transform');
-      await sleep(400);
-      addLog('→ Computing aggregations', 'transform');
-      await sleep(400);
-      document.getElementById('throughput').textContent = '3,421/s';
-      addLog('Transformations complete', 'transform');
-      await sleep(300);
+        // Stage 2: Extract
+        setStage(1);
+        addLog('Sending API request...', 'extract');
+        document.getElementById('apiCalls').textContent = '1';
 
-      // Validate stage
-      setStage(3);
-      addLog('Running validation checks...', 'info');
-      await sleep(500);
-      addLog('Schema validation: PASSED', 'info');
-      await sleep(300);
-      addLog('Data quality score: 98.7%', 'info');
-      document.getElementById('errors').textContent = '12';
-      await sleep(300);
+        const startTime = performance.now();
+        const response = await fetch(
+          `https://api.github.com/search/repositories?q=${query}&sort=stars&order=desc&per_page=30`
+        );
+        const endTime = performance.now();
+        const responseTime = Math.round(endTime - startTime);
 
-      // Load stage
-      setStage(4);
-      addLog('Loading to Redshift...', 'load');
-      await animateRecords('outputRecords', 0, 49988, 1500);
-      document.getElementById('outputSize').textContent = '18.2 MB';
-      addLog('Successfully loaded 49,988 records', 'load');
-      await sleep(300);
+        if (!response.ok) {
+          throw new Error(`API returned ${response.status}`);
+        }
 
-      document.getElementById('logStatus').textContent = 'Complete';
-      addLog('Pipeline execution completed successfully!', 'info');
+        const data = await response.json();
+        rawData = data.items || [];
+
+        const dataSize = new Blob([JSON.stringify(data)]).size;
+
+        document.getElementById('responseTime').textContent = `${responseTime}ms`;
+        document.getElementById('repoCount').textContent = rawData.length;
+        document.getElementById('dataSize').textContent = `${(dataSize / 1024).toFixed(1)} KB`;
+
+        addLog(`Response received: ${responseTime}ms latency`, 'extract');
+        addLog(`Extracted ${rawData.length} repositories (${(dataSize/1024).toFixed(1)} KB)`, 'extract');
+        await sleep(300);
+
+        // Stage 3: Transform
+        setStage(2);
+        addLog('Starting data transformations...', 'transform');
+
+        // Transform: aggregate by language
+        const languageStats = {};
+        let nullsHandled = 0;
+        let fieldsExtracted = 0;
+
+        for (const repo of rawData) {
+          fieldsExtracted += 6; // name, stars, forks, language, description, url
+
+          const lang = repo.language || 'Unknown';
+          if (!repo.language) nullsHandled++;
+
+          if (!languageStats[lang]) {
+            languageStats[lang] = { count: 0, stars: 0, forks: 0 };
+          }
+          languageStats[lang].count++;
+          languageStats[lang].stars += repo.stargazers_count || 0;
+          languageStats[lang].forks += repo.forks_count || 0;
+        }
+
+        addLog(`→ Mapping ${fieldsExtracted} fields from raw JSON`, 'transform');
+        await sleep(200);
+        document.getElementById('fieldsMapped').textContent = fieldsExtracted;
+
+        addLog(`→ Handling ${nullsHandled} null language values`, 'transform');
+        await sleep(200);
+        document.getElementById('nullsHandled').textContent = nullsHandled;
+
+        addLog(`→ Aggregating by ${Object.keys(languageStats).length} languages`, 'transform');
+        await sleep(200);
+        document.getElementById('aggregations').textContent = Object.keys(languageStats).length;
+
+        // Calculate totals
+        const totalStars = rawData.reduce((sum, r) => sum + (r.stargazers_count || 0), 0);
+        const totalForks = rawData.reduce((sum, r) => sum + (r.forks_count || 0), 0);
+        const avgStars = Math.round(totalStars / rawData.length);
+
+        addLog(`→ Computing aggregate metrics`, 'transform');
+        document.getElementById('recordsProcessed').textContent = rawData.length;
+        await sleep(200);
+
+        transformedData = { languageStats, totalStars, totalForks, avgStars };
+        addLog('Transformations complete', 'transform');
+        await sleep(200);
+
+        // Stage 4: Validate
+        setStage(3);
+        addLog('Running data validation...', 'info');
+        await sleep(200);
+
+        const validRecords = rawData.filter(r => r.name && r.stargazers_count !== undefined).length;
+        const validationRate = ((validRecords / rawData.length) * 100).toFixed(1);
+
+        addLog(`Schema validation: ${validRecords}/${rawData.length} records valid`, 'info');
+        addLog(`Data quality score: ${validationRate}%`, 'info');
+
+        if (validationRate < 95) {
+          addLog(`Warning: Quality below 95% threshold`, 'error');
+        }
+        await sleep(300);
+
+        // Stage 5: Visualize (Load)
+        setStage(4);
+        addLog('Generating visualizations...', 'load');
+
+        // Update output metrics
+        document.getElementById('totalStars').textContent = totalStars.toLocaleString();
+        document.getElementById('totalForks').textContent = totalForks.toLocaleString();
+        document.getElementById('avgStars').textContent = avgStars.toLocaleString();
+        document.getElementById('langCount').textContent = Object.keys(languageStats).length;
+
+        // Render charts
+        renderLanguageChart(languageStats);
+        renderTopRepos(rawData.slice(0, 8));
+
+        document.getElementById('resultsSection').style.display = 'grid';
+
+        addLog('Visualization rendered successfully', 'load');
+        addLog(`Pipeline complete: ${rawData.length} repos → ${Object.keys(languageStats).length} language groups`, 'info');
+
+        document.getElementById('logStatus').textContent = 'Complete';
+
+      } catch (error) {
+        addLog(`Error: ${error.message}`, 'error');
+        document.getElementById('logStatus').textContent = 'Error';
+        setStageError(stages[Math.max(0, stages.findIndex(s => document.getElementById(`stage-${s}`).classList.contains('active')))]);
+      }
+
       isRunning = false;
       document.getElementById('runBtn').disabled = false;
+    }
+
+    function renderLanguageChart(languageStats) {
+      const container = document.getElementById('languageChart');
+      container.innerHTML = '';
+
+      // Sort by stars and take top 6
+      const sorted = Object.entries(languageStats)
+        .sort((a, b) => b[1].stars - a[1].stars)
+        .slice(0, 6);
+
+      const maxStars = sorted[0]?.[1].stars || 1;
+
+      const colors = ['#f59e0b', '#a855f7', '#3b82f6', '#22c55e', '#ec4899', '#06b6d4'];
+
+      sorted.forEach(([lang, stats], index) => {
+        const percentage = (stats.stars / maxStars) * 100;
+        const row = document.createElement('div');
+        row.className = 'bar-row';
+        row.innerHTML = `
+          <div class="bar-label">${lang}</div>
+          <div class="bar-container">
+            <div class="bar" style="width: 0%; background: ${colors[index % colors.length]};">
+              ${stats.count} repos
+            </div>
+          </div>
+          <div class="bar-value">${(stats.stars/1000).toFixed(0)}k ⭐</div>
+        `;
+        container.appendChild(row);
+
+        // Animate bar
+        setTimeout(() => {
+          row.querySelector('.bar').style.width = `${percentage}%`;
+        }, 100 + index * 100);
+      });
+    }
+
+    function renderTopRepos(repos) {
+      const container = document.getElementById('topRepos');
+      container.innerHTML = '';
+
+      repos.forEach((repo, index) => {
+        const item = document.createElement('div');
+        item.className = 'repo-item';
+        item.innerHTML = `
+          <div class="repo-rank">${index + 1}</div>
+          <div class="repo-info">
+            <div class="repo-name">${repo.full_name}</div>
+            <div class="repo-desc">${repo.description || 'No description'}</div>
+          </div>
+          <div class="repo-stars">⭐ ${(repo.stargazers_count/1000).toFixed(1)}k</div>
+        `;
+        item.onclick = () => window.open(repo.html_url, '_blank');
+        item.style.cursor = 'pointer';
+        container.appendChild(item);
+      });
     }
 
     function sleep(ms) {
       return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    async function animateRecords(elementId, start, end, duration) {
-      const el = document.getElementById(elementId);
-      const steps = 30;
-      const increment = (end - start) / steps;
-      const stepDuration = duration / steps;
-
-      for (let i = 0; i <= steps; i++) {
-        el.textContent = Math.floor(start + increment * i).toLocaleString();
-        await sleep(stepDuration);
-      }
-    }
-
     function resetPipeline() {
       if (isRunning) return;
+
       stages.forEach(s => {
-        document.getElementById(`stage-${s}`).classList.remove('active', 'complete');
+        document.getElementById(`stage-${s}`).classList.remove('active', 'complete', 'error');
       });
       document.getElementById('pipelineProgress').style.width = '0%';
-      document.getElementById('inputRecords').textContent = '0';
-      document.getElementById('inputSize').textContent = '0 MB';
-      document.getElementById('outputRecords').textContent = '0';
-      document.getElementById('outputSize').textContent = '0 MB';
-      document.getElementById('throughput').textContent = '0/s';
-      document.getElementById('errors').textContent = '0';
+
+      // Reset stats
+      document.getElementById('repoCount').textContent = '0';
+      document.getElementById('apiCalls').textContent = '0';
+      document.getElementById('responseTime').textContent = '--';
+      document.getElementById('dataSize').textContent = '0 KB';
+      document.getElementById('recordsProcessed').textContent = '0';
+      document.getElementById('aggregations').textContent = '0';
+      document.getElementById('fieldsMapped').textContent = '0';
+      document.getElementById('nullsHandled').textContent = '0';
+      document.getElementById('totalStars').textContent = '0';
+      document.getElementById('totalForks').textContent = '0';
+      document.getElementById('avgStars').textContent = '0';
+      document.getElementById('langCount').textContent = '0';
+
+      document.getElementById('resultsSection').style.display = 'none';
       document.getElementById('logStatus').textContent = 'Idle';
+
       logTime = 0;
+      rawData = [];
+      transformedData = {};
+
       document.getElementById('logBody').innerHTML = `
-        <div class="log-entry"><span class="log-time">[00:00:00]</span> <span class="log-info">DataWeaver v3.2.0 initialized</span></div>
-        <div class="log-entry"><span class="log-time">[00:00:00]</span> <span class="log-info">Pipeline reset. Waiting for execution...</span></div>
+        <div class="log-entry"><span class="log-time">[00:00:00]</span> <span class="log-info">DataWeaver v4.0.0 initialized</span></div>
+        <div class="log-entry"><span class="log-time">[00:00:00]</span> <span class="log-info">Pipeline reset. Ready for new execution...</span></div>
       `;
     }
   </script>
